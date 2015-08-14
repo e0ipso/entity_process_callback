@@ -1,13 +1,3 @@
-**THIS IS NOT A MODULE. YOU CAN'T ENABLE IT. FOLLOW THE INSTRUCTIONS.**
-
-## Installation
-
-  1. You can just `drush dl entity_process_callback` and drush will download it into your .drush folder. (Alternately, you can obtain the package another way and copy the folder into .drush yourself.)
-  1. Run `drush cc drush`.
-
-You can start using the drush command. Try with `drush epc --help`.
-
-## Features
 Many times you want to execute an operation over a list of entities. Sometimes you will want to retroactively apply a
 default value to a certain field, other times you will want to export the articles tagged as Drupal to a CSV file, etc.
 
@@ -41,6 +31,8 @@ Examples:
  --ids=12,56
  drush epc node entity_save                This will re-save all the articles.
  --bundles=article
+ drush epc node entity_save                This will re-save all the articles asynchronously
+ --bundles=article --queue                 (putting the save operations into a queue).
 
 Arguments:
  entity-type                               Process all the entities of this type.
@@ -56,6 +48,7 @@ Options:
  ame|value|%sam%|like>                     separated by commas. Ignored when ids is populated.
  --ids=<1,4,66>                            Supply a comma-separated list of entity ids to process.
                                            If empty all entities are assumed.
+ --queue                                   Put the items in a queue to be processed asynchronously.
  --size=<10>                               Number of entities to populate per run. Defaults to 10.
 
 Aliases: epc, ep-callback
