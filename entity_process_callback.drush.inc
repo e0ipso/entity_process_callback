@@ -45,11 +45,15 @@ function entity_process_callback_drush_command() {
         'description' => 'Number of entities to populate per run. Defaults to 10.',
         'example-value' => '10',
       ),
+      'queue' => array(
+        'description' => 'Put the items in a queue to be processed asynchronously.',
+      )
     ),
     'examples' => array(
       'drush epc node \MyClass::addDefaultValueForNewField --size=25' => 'Will process all nodes.',
       'drush epc node my_module_custom_callback --ids=12,56' => 'Will process nodes with nid 12 and 56.',
       'drush epc node entity_save --bundles=article' => 'This will re-save all the articles.',
+      'drush epc node entity_save --bundles=article --queue' => 'This will re-save all the articles asynchronously (putting the save operations into a queue).',
     ),
   );
 
@@ -77,8 +81,29 @@ function entity_process_callback_drush_help($section) {
  *   The array of options.
  */
 function drush_entity_process_callback($entity_type = NULL, $callable = NULL, array $options = array()) {
-  // Get all the processed options.
-  list($ids, $chunk_size) = drush_entity_process_callback_process_options($entity_type, $callable, $options);
+  try {
+    // Get all the processed options.
+    list($ids, $chunk_size) = drush_entity_process_callback_process_options($entity_type, $options);
+  }
+  catch (\EpcException $e) {
+    watchdog_exception('entity_process_callback', $e);
+    drush_set_error('Invalid operation', dt($e->getMessage()));
+    return;
+  }
+
+  // If the queue is selected then just schedule the operations.
+  if (drush_get_option('queue')) {
+    /* @var \SystemQueue $queue */
+    $queue = DrupalQueue::get(EPC_PROCESS_QUEUE_NAME);
+    // There is no harm in trying to recreate existing.
+    $queue->createQueue();
+
+    foreach ($ids as $id) {
+      $queue->createItem(new \EpcOperation($entity_type, $id, $callable));
+    }
+    drush_log(dt('All entities have been queued.'), 'ok');
+    return;
+  }
 
   if (drush_get_error()) {
     return;
@@ -135,7 +160,7 @@ function drush_entity_process_callback($entity_type = NULL, $callable = NULL, ar
  * @return array
  *   Numeric array with the processed options
  */
-function drush_entity_process_callback_process_options($entity_type, $callable, array $options = array()) {
+function drush_entity_process_callback_process_options($entity_type, array $options = array()) {
   // Get all options.
   $options += array(
     'ids' => drush_get_option('ids'),
@@ -155,11 +180,6 @@ function drush_entity_process_callback_process_options($entity_type, $callable, 
   // Make sure options are valid.
   if (empty($entity_type) || !$info = entity_get_info($entity_type)) {
     return drush_set_error('Invalid entity type', dt('Error: The entity type provided does not exist.'));
-  }
-  if (!is_callable($callable)) {
-    return drush_set_error('Invalid callback', dt('Error: The provided callback "@callable" is not callable.', array(
-      '@callable' => $callable,
-    )));
   }
 
   // If we were provided IDs, then we're done here.
@@ -253,12 +273,15 @@ function drush_entity_process_callback_send_batch(array $ids, $entity_type, $cal
     $context['results']['success'] = $context['results']['error'] = 0;
   }
   foreach ($entities as $entity) {
-    if (call_user_func_array($callable, array($entity_type, $entity))) {
-      $context['results']['success']++;
+    try {
+      $operation = new \EpcOperation($entity_type, $entity, $callable);
     }
-    else {
+    catch (\EpcException $e) {
       $context['results']['error']++;
+      watchdog_exception('entity_process_callback', $e);
+      continue;
     }
+    $operation->execute() ? $context['results']['success']++ : $context['results']['error']++;
   }
 }
 
