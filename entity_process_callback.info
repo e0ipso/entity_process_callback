@@ -1,0 +1,6 @@
+name = Entity Process Callback
+description = Allows you to run backend expensive operations on your entities.
+core = 7.x
+
+files[] = EpcException.php
+files[] = EpcOperation.php
