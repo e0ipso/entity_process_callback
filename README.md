@@ -28,3 +28,36 @@ Beyond the entity type filter you can narrow your selection by using the followi
   1. By bundle. You can select the bundles that you want to limit the entities that will be affected.
   1. By property and field values. Only process the entities that match a certain value in a given field.
 
+## Help
+```
+/var/www/docroot $ drush epc --help
+This command will process the selected entities with the provided callback.
+
+Examples:
+ drush epc node                            Will process all nodes.
+ \MyClass::addDefaultValueForNewField
+ --size=25
+ drush epc node my_module_custom_callback  Will process nodes with nid 12 and 56.
+ --ids=12,56
+ drush epc node entity_save                This will re-save all the articles.
+ --bundles=article
+
+Arguments:
+ entity-type                               Process all the entities of this type.
+ callback                                  Callable name that will be executed for every selected
+                                           entity. It takes the entity type as the first argument
+                                           and the entity as the second. Return TRUE for success or
+                                           FALSE for error.
+
+Options:
+ --bundles=<article,page>                  Limit the entities to the list of bundles, separated by
+                                           commas. Ignored when ids is populated.
+ --fields=<field_category|tid|555,field_n  Limit the entities to field conditions, pipe-delimted,
+ ame|value|%sam%|like>                     separated by commas. Ignored when ids is populated.
+ --ids=<1,4,66>                            Supply a comma-separated list of entity ids to process.
+                                           If empty all entities are assumed.
+ --size=<10>                               Number of entities to populate per run. Defaults to 10.
+
+Aliases: epc, ep-callback
+```
+
