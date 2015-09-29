@@ -90,7 +90,6 @@ function drush_entity_process_callback($entity_type = NULL, $callable = NULL, ar
     list($ids, $chunk_size) = drush_entity_process_callback_process_options($entity_type, $options);
   }
   catch (\EpcException $e) {
-    watchdog_exception('entity_process_callback', $e);
     drush_set_error('Invalid operation', dt($e->getMessage()));
     return;
   }
@@ -184,7 +183,7 @@ function drush_entity_process_callback_process_options($entity_type, array $opti
 
   // Make sure options are valid.
   if (empty($entity_type) || !$info = entity_get_info($entity_type)) {
-    return drush_set_error('Invalid entity type', dt('Error: The entity type provided does not exist.'));
+    throw new \EpcException('Error: The entity type provided does not exist.');
   }
 
   // If we were provided IDs, then we're done here.
@@ -196,7 +195,7 @@ function drush_entity_process_callback_process_options($entity_type, array $opti
   if (!empty($bundles)) {
     foreach ($bundles as $bundle) {
       if (empty($info['bundles'][$bundle])) {
-        return drush_set_error('Invalid bundle', dt('Error: The provided bundle does not exist for this entity type.'));
+        throw new \EpcException('Error: The provided bundle does not exist for this entity type.');
       }
     }
   }
@@ -204,12 +203,12 @@ function drush_entity_process_callback_process_options($entity_type, array $opti
   $efq_class = $options['efq-class'];
   if (!class_exists($efq_class)) {
     // Make sure that the class exists.
-    return drush_set_error('Invalid entity field query class.', dt('Error: The entity field query class provided does not exist.'));
+    throw new \EpcException('Error: The entity field query class provided does not exist.');
   }
   $query = new $efq_class();
   if (!$query instanceof \EntityFieldQuery) {
     // Make sure that the class is EntityFieldQuery or a descendant of it.
-    return drush_set_error('Invalid entity field query class.', dt('Error: The entity field query class provided is not usable.'));
+    throw new \EpcException('Error: The entity field query class provided is not usable.');
   }
   $query->entityCondition('entity_type', $entity_type);
   if (!empty($bundles)) {
@@ -223,7 +222,7 @@ function drush_entity_process_callback_process_options($entity_type, array $opti
   $results = $query->execute();
 
   if (empty($results[$entity_type])) {
-    return drush_set_error(dt('No entities to process'));
+    throw new \EpcException('No entities to process');
   }
 
   $ids = array_keys($results[$entity_type]);
