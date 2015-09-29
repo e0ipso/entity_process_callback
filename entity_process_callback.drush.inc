@@ -47,7 +47,11 @@ function entity_process_callback_drush_command() {
       ),
       'queue' => array(
         'description' => 'Put the items in a queue to be processed asynchronously.',
-      )
+      ),
+      'efq-class' => array(
+        'description' => '(ADVANCED) If you are making use of a custom EntityFieldQuery class, provide the class name here. Defaults to \\EntityFieldQuery',
+        'example-value' => '\\Drupal\\my_module\\Util\\EntityFieldQuery',
+      ),
     ),
     'examples' => array(
       'drush epc node \MyClass::addDefaultValueForNewField --size=25' => 'Will process all nodes.',
@@ -167,6 +171,7 @@ function drush_entity_process_callback_process_options($entity_type, array $opti
     'bundles' => drush_get_option('bundles'),
     'fields' => drush_get_option('fields'),
     'size' => drush_get_option('size', 10),
+    'efq-class' => drush_get_option('efq-class', '\\EntityFieldQuery'),
   );
 
   $ids = array_filter(explode(',', $options['ids']));
@@ -196,7 +201,16 @@ function drush_entity_process_callback_process_options($entity_type, array $opti
     }
   }
 
-  $query = new \EntityFieldQuery();
+  $efq_class = $options['efq-class'];
+  if (!class_exists($efq_class)) {
+    // Make sure that the class exists.
+    return drush_set_error('Invalid entity field query class.', dt('Error: The entity field query class provided does not exist.'));
+  }
+  $query = new $efq_class();
+  if (!$query instanceof \EntityFieldQuery) {
+    // Make sure that the class is EntityFieldQuery or a descendant of it.
+    return drush_set_error('Invalid entity field query class.', dt('Error: The entity field query class provided is not usable.'));
+  }
   $query->entityCondition('entity_type', $entity_type);
   if (!empty($bundles)) {
     $query->entityCondition('bundle', $bundles, 'IN');
